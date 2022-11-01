@@ -5,6 +5,12 @@ date: "`r Sys.Date()`"
 output: pdf_document
 ---
 
+```{r}
+dir <- "/pine/scr/e/u/eunchong/BIOS784/BIOS784_FinalProject"
+setwd(dir)
+```
+
+
 ```{r load}
 library(GEOquery)
 
@@ -19,6 +25,12 @@ library(knitr) # Needed to render RMD.
 ```{r}
 gset <- getGEO("GSE48024", GSEMatrix =TRUE, AnnotGPL=TRUE)
 ```
+
+```{r save_data}
+saveRDS(gset, file=file.path(dir,"data","gset"))
+load(file.path(dir,"data","gset"))
+```
+
 
 Here, "gset" contains two items, one data for male and another data for female. In total, there are 417 samples from 110 female participants, and 431 samples from 166 male participants. 
 
