@@ -1,0 +1,97 @@
+---
+title: "Load_GSE48024"
+author: "Sylvia Yu Zhang"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r load}
+library(GEOquery)
+
+#library(limma) # Not needed for loading data
+
+#library(umap) # Not needed for loading data
+
+library(knitr) # Needed to render RMD.
+```
+
+### Load data.
+```{r}
+gset <- getGEO("GSE48024", GSEMatrix =TRUE, AnnotGPL=TRUE)
+```
+
+Here, "gset" contains two items, one data for male and another data for female. In total, there are 417 samples from 110 female participants, and 431 samples from 166 male participants. 
+
+```{r}
+gset_female <- gset[[1]]
+gset_female
+gset_male <- gset[[2]]
+gset_male
+
+# Information given regarding each sample
+colnames(gset_female@phenoData)
+
+table(gset_female$`gender:ch1`)
+length(unique(gset_female$`subject:ch1`))
+
+table(gset_male$`gender:ch1`)
+length(unique(gset_male$`subject:ch1`))
+```
+
+Apparently, female and male samples are sequenced using difference version of platforms. Thus, we see different number of probes. 
+
+```{r}
+table(gset_female$platform_id) # Illumina HumanHT-12 V4.0 expression beadchip
+nrow(gset_female)
+
+table(gset_male$platform_id) # Illumina HumanHT-12 V3.0 expression beadchip
+nrow(gset_male)
+```
+
+"AnnotGPL" option in "getGEO" function automatically adds annotation corresponding to each gene. However, 16033 probes do not have gene symbols annotated. 
+
+```{r}
+# Inforamtion given regarding each probe
+colnames(gset_female@featureData)
+
+kable(head(data.frame(ID = gset_female@featureData$"ID",
+                      Gene_symbol = gset_female@featureData$"Gene symbol")))
+
+kable(head(data.frame(ID = gset_female@featureData$"ID",
+                      GO = gset_female@featureData$"GO:Function")))
+
+
+sum(gset_female@featureData$"Gene symbol" == "")
+
+```
+
+### Check normalization, and expression range.
+
+Just randomly draw 10 samples for each gender and boxplot each sample. 
+```{r}
+boxplot(exprs(gset_female)[,sample(1:417, 10, replace=F)], main = "Female")
+
+boxplot(exprs(gset_male)[,sample(1:431, 10, replace=F)], main = "Male")
+```
+
+### Number of samples at each time for female and male
+
+```{r}
+kable(table(gset_female$`time:ch1`))
+
+kable(table(gset_male$`time:ch1`))
+```
+
+### Below shows five probes corresponding to gene "IL18BP", annotation done by "AnnotGPL" option.
+
+I never tried annotation using "AnnotGPL" before, so I'm not sure how it is done exactly. 
+
+```{r}
+gset_female@featureData$"ID"[which(gset_female@featureData$"Gene symbol" == "IL18BP")]
+
+```
+
+
+
+
+
