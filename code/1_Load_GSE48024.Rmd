@@ -142,14 +142,27 @@ a2 <- a1 %>%
   select(Platform_SEQUENCE)
 # confirmed that the Platform_SEQUENCE with gene_id = '' is not associated with a gene based on current Illumina annotation info in https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GPL10558
 
-a1 %>%
+a3 <- a1 %>%
   count(`Gene ID`) %>%
   filter(!(`Gene ID`=="")) %>%
   dplyr::arrange(-n)
 
-# not done
-# then need to assess those top 5/10 genes' function, properties...
-se_female_Day0 %>% filter(exprs > qx[3]) %>% select(`GO:Function`)
+gene_data <- as(gset_female@featureData, "data.frame")
+
+a4 <- a3 %>%
+  left_join(gene_data %>% select(-ID, -Platform_SEQUENCE, -`Nucleotide Title`,-GI,-`GenBank Accession`,-starts_with("Platform_")) %>% distinct(), by=c('Gene ID'='Gene ID')) %>%
+  distinct()
+
+# assess top 5 genes' GO:Function
+a5 <- a4 %>%
+  dplyr::top_n(5) %>%
+  select(`GO:Function`) %>%
+  unlist() %>%
+  strsplit("/+")
+
+a6 <- table(unlist(a5)) %>% as.data.frame() %>% 
+  dplyr::arrange(desc(Freq))
+
 ```
 
 
