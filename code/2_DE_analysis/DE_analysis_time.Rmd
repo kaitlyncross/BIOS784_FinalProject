@@ -1,8 +1,11 @@
 ---
-title: "DE_analysis_time"
+title: "DE_analysis_male"
 author: "Yu (Sylvia) Zhang"
 date: "`r Sys.Date()`"
-output: html_document
+output: 
+  html_document:
+        toc: true
+        toc_float: true
 ---
 
 ```{r load package, message = FALSE}
@@ -15,6 +18,10 @@ library(limma)
 library(nlme)
 library(MASS)
 library(multcomp)
+library(pheatmap)
+library(variancePartition)
+library(lme4)
+library("r2glmm")
 ```
 
 # Load data
@@ -36,9 +43,13 @@ load("/Users/yu.zhang/Desktop/BIOS 784/Data/GSE48024/gset.RData")
 gset_male <- gset[[2]]
 ```
 
+```{r}
+boxplot(exprs(gset_male)[,sample(1:431, 10, replace=F)])
+```
+
 ## Subset to probes with gene name
 
-Total 431 samples and 29228 probes.
+Total 431 samples and 29228 probes with valid gene symbol.
 
 ```{r}
 gset_male <- gset_male[which(gset_male@featureData@data[["Gene symbol"]] != ""), ]
@@ -56,12 +67,15 @@ SE_male  <- SummarizedExperiment(assay = list("exprs" = exprs(gset_male)),
 table(SE_male$`time:ch1`)
 ```
 
-## Subset to participants sampled at all time
+## Subset to participants sampled at all 4 time points
 
 ```{r}
 paticipants.all <- as.data.frame(table(SE_male$`subject:ch1`)) %>% filter(Freq == 4)
 
 SE_male <- SE_male[, which(SE_male$`subject:ch1` %in% paticipants.all$Var1)]
+
+table(SE_male$`time:ch1`)
+
 ```
 
 ## Merge duplicate probes, averaging expression from the same gene
@@ -73,6 +87,8 @@ rownames(SE_male)[1:10]
 
 expression.dupRM <- avereps(SE_male@assays@data@listData[["exprs"]], ID=SE_male@elementMetadata@listData[["Gene symbol"]])
 
+# match(colnames(expression.dupRM ) , rownames(SE_male@colData))
+
 SE_male_dupRM <- SummarizedExperiment(assay = list("exprs" = expression.dupRM),
                                   colData = SE_male@colData)
 
@@ -83,7 +99,12 @@ SE_male_dupRM
 
 ```{r}
 SE_male_dupRM@metadata[["gene_mean"]] <- rowMeans(SE_male_dupRM@assays@data@listData[["exprs"]])
+
+boxplot(SE_male_dupRM@metadata[["gene_mean"]])
+
 SE_male_dupRM@metadata[["gene_variance"]] <- rowVars(SE_male_dupRM@assays@data@listData[["exprs"]])
+
+boxplot(SE_male_dupRM@metadata[["gene_variance"]])
 
 quantile(SE_male_dupRM@metadata[["gene_mean"]]) # 25% = 7.734803
 quantile(SE_male_dupRM@metadata[["gene_variance"]]) # 25% =  0.0022386139, 75% = 0.0134488159
@@ -91,8 +112,8 @@ quantile(SE_male_dupRM@metadata[["gene_variance"]]) # 25% =  0.0022386139, 75% =
 SE_male_dupRM_25up <- SE_male_dupRM[which(SE_male_dupRM@metadata[["gene_variance"]] > 0.0022386139), ]
 SE_male_dupRM_25up
 
-SE_male_dupRM_75up <- SE_male_dupRM[which(SE_male_dupRM@metadata[["gene_variance"]] > 0.0134488159), ]
-SE_male_dupRM_75up
+#SE_male_dupRM_75up <- SE_male_dupRM[which(SE_male_dupRM@metadata[["gene_variance"]] > 0.0134488159), ]
+#SE_male_dupRM_75up
 
 #save(SE_male_dupRM_25up, file = "/Users/yu.zhang/Desktop/BIOS 784/Data/GSE48024/SE_male_dupRM_25up.RData")
 #save(SE_male_dupRM_75up, file = "/Users/yu.zhang/Desktop/BIOS 784/Data/GSE48024/SE_male_dupRM_75up.RData")
@@ -100,28 +121,29 @@ SE_male_dupRM_75up
 
 After filtering out lower 25%, we are left with 14692 unique genes and 368 samples.
 
+After filtering out lower 50%, we are left with 9795 unique genes and 368 samples.
+
 After filtering out lower 75%, we are left with 4898 unique genes and 368 samples.
 
 # DE analysis
 
-## Function for DE analysis
+## Function for DE analysis using top 25% most variant genes
 
-Currently using top 25% most variant genes.I have issue with mixed effect model on gene "ARRDC2" (false convergence?), which is in the upper 25%, not upper 75% in terms of variance. I need to look into the convergence problem. 
 
 ```{r}
 mixed_test <- function(gene,gene_name, covariates, fml, var_rowname){
   
-  #gene = as.data.frame(SE_male_dupRM_25up@assays@data@listData[["exprs"]][which(rownames(SE_male_dupRM_25up) ==  "ARRDC2"),])
+  #gene = as.data.frame(SE_male_dupRM_50up@assays@data@listData[["exprs"]][which(rownames(SE_male_dupRM_50up) ==  "ARRDC2"),])
   #gene_name = "ARRDC2"
   #covariates = cov
-  #fml = as.formula(gene ~ time)
+  #fml = as.formula(gene ~ time + Error(ID))
   #var_rowname = c("time")
   #print(gene_name)
 
   df_test <- cbind(gene , covariates)
   colnames(df_test)[1] <- "gene"
-  mix_model <- lme(fml, data = df_test, random = ~1|ID, method = "ML", correlation = corCompSymm()) 
-  df_ret <- as.data.frame(anova(mix_model, type="marginal")$`p-value`[2])
+  mix_model <- aov(fml, data=df_test)
+  df_ret <- data.frame(unlist(summary(mix_model))["Error: Within.Pr(>F)1"])
   rownames(df_ret) <- var_rowname
   colnames(df_ret) <- gene_name
   return(tibble(df_ret))
@@ -134,18 +156,17 @@ mixed_test <- function(gene,gene_name, covariates, fml, var_rowname){
 #### P-value from mixed effect model
 
 ```{r, eval = FALSE}
-# "ARRDC2" has convergence problem when running mixed effect model.
+genes <- rownames(SE_male_dupRM_25up)
 
-genes <- rownames(SE_male_dupRM_75up)
+cov <- data.frame(ID = SE_male_dupRM_25up$`subject:ch1`,
+                  gender = SE_male_dupRM_25up$`gender:ch1`,
+                  time = as.character(SE_male_dupRM_25up$`time:ch1`))
 
-cov <- data.frame(ID = SE_male_dupRM_75up$`subject:ch1`,
-                  gender = SE_male_dupRM_75up$`gender:ch1`,
-                  time = as.character(SE_male_dupRM_75up$`time:ch1`))
 
-mix_test_time <- sapply( 1:nrow(SE_male_dupRM_75up), function(i) mixed_test(   gene = as.data.frame(SE_male_dupRM_75up@assays@data@listData[["exprs"]][which(rownames(SE_male_dupRM_75up) ==  genes[i]),]),
+mix_test_time <- sapply( 1:nrow(SE_male_dupRM_25up), function(i) mixed_test(   gene = as.data.frame(SE_male_dupRM_25up@assays@data@listData[["exprs"]][which(rownames(SE_male_dupRM_25up) ==  genes[i]),]),
   gene_name = genes[i],
   covariates = cov,
-  fml = as.formula(gene ~ time),
+  fml = as.formula(gene ~ time + Error(ID)),
   var_rowname = c("time")) )
 
 mix_test_time <- as.data.frame(unlist(mix_test_time))
@@ -153,6 +174,7 @@ mix_test_time <- as.data.frame(unlist(mix_test_time))
 colnames(mix_test_time) <- c("p_value_mix_compsym")
 
 write.csv(mix_test_time, file = paste0(here(), "/code/2_DE_analysis/mix_pvalue_compsym.csv"))
+
 
 ```
 
@@ -162,18 +184,102 @@ write.csv(mix_test_time, file = paste0(here(), "/code/2_DE_analysis/mix_pvalue_c
 mix_test_time <- read.csv(file = paste0(here(), "/code/2_DE_analysis/mix_pvalue_compsym.csv"))
 rownames(mix_test_time) <- mix_test_time$X
 
-boxplot(mix_test_time$p_value_mix_compsym, main ="P-value from mixed model, gene ~ time + 1|ID")
+boxplot(mix_test_time$p_value_mix_compsym, main ="P-value from mixed model, gene ~ time + (1|ID)")
 
 # BH adjusted p-value
 mix_test_time$BH_pvalue <- p.adjust(mix_test_time$p_value_mix_compsym, method =  "BH", n = length(mix_test_time$p_value_mix_compsym))
 
 boxplot(mix_test_time$BH_pvalue, main ="BH adjusted P-value from mixed model, gene ~ time + 1|ID")
 
-DEgene_pvalue_BH <- mix_test_time %>% as.data.frame() %>% filter(BH_pvalue < 0.05)
+DEgene_pvalue_BH <- mix_test_time %>% as.data.frame() %>% filter(BH_pvalue < 0.01)
 
 nrow(DEgene_pvalue_BH)
 
 ```
+A total of 4540 DE genes wrt time after BH adjustment.
+
+#### Heatmap on top 30 DE genes from BH adjusted p-values
+
+```{r, fig.height=8, fig.width=6 }
+
+DE_genes <- SE_male_dupRM_25up[which(rownames(SE_male_dupRM_25up) %in% rownames(DEgene_pvalue_BH %>% arrange(BH_pvalue))[1:50]), ]
+
+colData(DE_genes)$time <- factor(colData(DE_genes)$`time:ch1`, levels = c("Day0", "Day1", "Day3", "Day14"))
+
+table(colData(DE_genes)$time)
+
+DE_genes_mean <- sapply(c("Day0", "Day1", "Day3", "Day14"), function(day) rowMeans(assay(DE_genes)[, which(colData(DE_genes)$time == day)]))
+
+pheatmap(DE_genes_mean, cluster_rows = TRUE,  cluster_cols = FALSE, scale = "row", 
+          main = "Heatmap on top 50 DE genes wrt time by BH adjusted p-values")
+
+```
+
+### Gene ontology enrichment analysis
 
 
+```{r, message = FALSE}
+library(enrichplot)
+library(DOSE)
+library(gprofiler2)
 
+DE_gene_name <- gost(query = DEgene_pvalue_BH$X, organism = "hsapiens", multi_query = FALSE,
+                     correction_method = "fdr", user_threshold = 0.01, source = "GO")
+
+head(DE_gene_name$result)
+
+table(DE_gene_name[["result"]][["source"]])
+
+#gostplot(DE_gene_name, interactive = TRUE)
+
+colnames(DE_gene_name$result)
+
+gostplot(DE_gene_name, capped = TRUE, interactive = FALSE)
+
+DE_mod = DE_gene_name$result[,c("query",  "term_id",
+                                "term_name", "p_value", "query_size", 
+                                "intersection_size", "term_size", 
+                                "effective_domain_size", "intersection_size")]
+
+DE_mod$"GeneRatio" = paste0(DE_mod$intersection_size,  "/", DE_mod$query_size)
+DE_mod$BgRatio = paste0(DE_mod$term_size, "/", DE_mod$effective_domain_size)
+DE_mod$"pvalue" <- DE_mod$p_value
+DE_mod$Count <- DE_mod$intersection_size
+DE_mod$Description<- DE_mod$term_name
+DE_mod_enrich  <-  new("enrichResult", result = DE_mod)
+
+dotplot(DE_mod_enrich , x = 'GeneRatio', color = "pvalue")
+
+```
+
+```{r test code, echo=FALSE,eval = FALSE}
+library(topGO)
+library("AnnotationHub")
+library(GO.db)
+library(clusterProfiler)
+data(geneList)
+geneList[1:5]
+de <- names(geneList)[1:100]
+de[1:5]
+x <- enrichDO(de)
+dotplot(x)
+
+# Maybe useful? 
+ah <- AnnotationHub()
+orgs <- subset(ah, ah$rdataclass == "OrgDb")
+orgdb <- query(orgs, "Homo sapiens")[[1]]
+geneList <- DEgene_pvalue_BH$BH_pvalue
+names(geneList) <- DEgene_pvalue_BH$X
+GOdata <- new("topGOdata",
+    ontology = "BP",
+    allGenes = geneList,
+    geneSelectionFun = function(x)x,
+    annot = annFUN.org, mapping = )
+
+```
+
+# Cluster participants based on day 1 and day 3 expression 
+
+```{r}
+gene_exprs_day1_3 <- assay(SE_male_dupRM_25up)
+```
