@@ -6,6 +6,8 @@ output:
   html_document:
         toc: true
         toc_float: true
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r load package, message = FALSE}
@@ -264,6 +266,7 @@ library(topGO)
 library("AnnotationHub")
 library(GO.db)
 library(clusterProfiler)
+
 data(geneList)
 geneList[1:5]
 de <- names(geneList)[1:100]
@@ -325,6 +328,28 @@ SE_male_dupRM_25up$response <- GMM$classification[match(SE_male_dupRM_25up$`subj
 Out of 92 participants, GMM and K-means agree on the classification of 24+49=73 participants.  
 
 For downstream analysis of DE genes on response over time, I'm using result from GMM for now. If we are interested in K-means after I put more visualization, I can definitely switch. 
+
+# possible relationship between clustering results and responsiveness
+```{r }
+# Gene names in Table 1
+names_table1 <- c("STAT1", "IRF9", "SPI1", "CD74", "HLA-E", "TNFSF13B", "PRDX3", "E2F2", "PTEN", "ITGB1")
+
+# Boxplot of diff(day1-day0) by clustered group across the genes in Table 1
+par(mfrow=c(2,5))
+for (i in 1:length(names_table1)){
+  dff <- data.frame(expr = diff_day1_0[names_table1[i],], group=GMM$classification)
+  boxplot(expr ~group,dff, main=names_table1[i], ylab="diff(day1- day0)")
+}
+par(mfrow=c(1,1))
+
+# Create Table1
+table1 <- data.frame(Gene=names_table1, "Upregulated in"=c("High responders", "High responders","High responders","High responders","High responders","High responders","Low responders","Low responders","Low responders","Low responders"))
+
+## Subset of Transcripts Used for prediction of the TRI
+table1
+```
+
+Interestingly, the results correspond to Table 1 assuming response 2 means the high response. For example, the paper says STAT1 gene is upregulated in the high responders, and the boxplot shows the diff(day1-day0) for STAT1 is higher in the response 2 (high responder) with the value greater than 0 than one in response 1 (low responder) with the value of around 0. The only exception is PTEN, which is said to be upregulated in the low responders but the boxplot shows the diff is higher and greater than 0 in response 2 (high responder). Although there is no solid evidence that the clustering result represents true responsiveness, we have some coincident results between the paper and our clustering and help us move on to the next analysis assuming that clustering is partly based on responsiveness.
 
 # DE genes on response over time, using Day 1 - 14 data only
 
