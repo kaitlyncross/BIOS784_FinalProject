@@ -190,10 +190,14 @@ rownames(mix_test_time) <- mix_test_time$X
 
 boxplot(mix_test_time$p_value_mix_compsym, main ="P-value from mixed model, gene ~ time + (1|ID)")
 
+hist(mix_test_time$p_value_mix_compsym, main ="P-value from mixed model, gene ~ time + (1|ID)")
+
 # BH adjusted p-value
 mix_test_time$BH_pvalue <- p.adjust(mix_test_time$p_value_mix_compsym, method =  "BH", n = length(mix_test_time$p_value_mix_compsym))
 
 boxplot(mix_test_time$BH_pvalue, main ="BH adjusted P-value from mixed model, gene ~ time + 1|ID")
+
+hist(mix_test_time$BH_pvalue, main ="BH adjusted P-value from mixed model, gene ~ time + 1|ID")
 
 DEgene_pvalue_BH <- mix_test_time %>% as.data.frame() %>% filter(BH_pvalue < 0.01)
 
@@ -364,10 +368,14 @@ rownames(mix_test_response_time) <- mix_test_response_time$X
 
 boxplot(mix_test_response_time$p_value_mix_compsym, main ="P-value from mixed model, gene ~ time*response + (1|ID)")
 
+hist(mix_test_response_time$p_value_mix_compsym, main ="P-value from mixed model, gene ~ time*response + (1|ID)")
+
 # BH adjusted p-value
 mix_test_response_time$BH_pvalue <- p.adjust(mix_test_response_time$p_value_mix_compsym, method =  "BH", n = length(mix_test_response_time$p_value_mix_compsym))
 
 boxplot(mix_test_response_time$BH_pvalue, main ="BH adjusted P-value from mixed model, gene ~ time*response + 1|ID")
+
+hist(mix_test_response_time$BH_pvalue, main ="BH adjusted P-value from mixed model, gene ~ time*response + 1|ID")
 
 DEgene_pvalue_BH_response <- mix_test_response_time %>% as.data.frame() %>% filter(BH_pvalue < 0.1)
 
@@ -387,12 +395,20 @@ colData(DE_genes_response)$time <- factor(colData(DE_genes_response)$`time:ch1`,
 
 table(colData(DE_genes_response)$time)
 
-DE_genes_response_mean <- sapply(c( "Day1", "Day3", "Day14"), function(day) rowMeans(assay(
+DE_genes_response1_mean <- sapply(c( "Day1", "Day3", "Day14"), function(day) rowMeans(assay(
 DE_genes_response)[, which(colData(
-DE_genes_response)$time == day)]))
+DE_genes_response)$time == day & DE_genes_response$response == 1)]))
 
-pheatmap(DE_genes_response_mean, cluster_rows = TRUE,  cluster_cols = FALSE, scale = "row", 
-          main = "Heatmap on top 50 DE genes wrt response over time by BH adjusted p-values")
+DE_genes_response2_mean <- sapply(c( "Day1", "Day3", "Day14"), function(day) rowMeans(assay(
+DE_genes_response)[, which(colData(
+DE_genes_response)$time == day & DE_genes_response$response == 2)]))
+
+
+pheatmap(DE_genes_response1_mean, cluster_rows = TRUE,  cluster_cols = FALSE, scale = "row", 
+          main = "Heatmap on top 50 DE genes wrt response 1 over time by BH adjusted p-values")
+
+pheatmap(DE_genes_response2_mean, cluster_rows = TRUE,  cluster_cols = FALSE, scale = "row", 
+          main = "Heatmap on top 50 DE genes wrt response 2 over time by BH adjusted p-values")
 
 ```
 
