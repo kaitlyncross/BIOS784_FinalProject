@@ -125,25 +125,29 @@ After filtering out lower 50%, we are left with 9795 unique genes and 368 sample
 
 After filtering out lower 75%, we are left with 4898 unique genes and 368 samples.
 
-# DE analysis
+# DE analysis wrt time only
 
 ## Function for DE analysis using top 25% most variant genes
 
 
 ```{r}
 mixed_test <- function(gene,gene_name, covariates, fml, var_rowname){
-  
-  #gene = as.data.frame(SE_male_dupRM_50up@assays@data@listData[["exprs"]][which(rownames(SE_male_dupRM_50up) ==  "ARRDC2"),])
-  #gene_name = "ARRDC2"
-  #covariates = cov
-  #fml = as.formula(gene ~ time + Error(ID))
-  #var_rowname = c("time")
-  #print(gene_name)
 
   df_test <- cbind(gene , covariates)
   colnames(df_test)[1] <- "gene"
   mix_model <- aov(fml, data=df_test)
   df_ret <- data.frame(unlist(summary(mix_model))["Error: Within.Pr(>F)1"])
+  rownames(df_ret) <- var_rowname
+  colnames(df_ret) <- gene_name
+  return(tibble(df_ret))
+}
+
+mixed_test2 <- function(gene,gene_name, covariates, fml, var_rowname){
+  
+  df_test <- cbind(gene , covariates)
+  colnames(df_test)[1] <- "gene"
+  mix_model <- aov(fml, data=df_test)
+  df_ret <- data.frame(unlist(summary(mix_model))["Error: Within.Pr(>F)2"])
   rownames(df_ret) <- var_rowname
   colnames(df_ret) <- gene_name
   return(tibble(df_ret))
@@ -198,7 +202,7 @@ nrow(DEgene_pvalue_BH)
 ```
 A total of 4540 DE genes wrt time after BH adjustment.
 
-#### Heatmap on top 30 DE genes from BH adjusted p-values
+#### Heatmap on top 50 DE genes from BH adjusted p-values
 
 ```{r, fig.height=8, fig.width=6 }
 
@@ -216,7 +220,6 @@ pheatmap(DE_genes_mean, cluster_rows = TRUE,  cluster_cols = FALSE, scale = "row
 ```
 
 ### Gene ontology enrichment analysis
-
 
 ```{r, message = FALSE}
 library(enrichplot)
@@ -278,8 +281,148 @@ GOdata <- new("topGOdata",
 
 ```
 
-# Cluster participants based on day 1 and day 3 expression 
+# Cluster participants based on diff(day1 - day0) expression 
+
+```{r }
+
+library(mclust)
+library(factoextra)
+
+table(SE_male_dupRM_25up$`time:ch1`)
+
+DE10_response <- c("STAT1", "IRF9", "SPI1", "CD74", "HLA-E", "TNFSF13B", "PRDX2", "PRDX3", "E2F2", "PTEN", "ITGB1")
+
+gene_exprs_day1_0 <- list( day1 = SE_male_dupRM_25up[,which(SE_male_dupRM_25up$`time:ch1` == "Day1")],
+                           day0 = SE_male_dupRM_25up[,which(SE_male_dupRM_25up$`time:ch1` == "Day0")])
+
+dim(gene_exprs_day1_0[[1]])
+
+gene_exprs_day1_0[[2]] <- gene_exprs_day1_0[[2]][match(rownames(gene_exprs_day1_0[[2]]), rownames(gene_exprs_day1_0[[1]])), match(gene_exprs_day1_0[[2]]$`subject:ch1`, gene_exprs_day1_0[[1]]$`subject:ch1`)]
+
+diff_day1_0 <- gene_exprs_day1_0[["day1"]]@assays@data@listData[["exprs"]] - gene_exprs_day1_0[["day0"]]@assays@data@listData[["exprs"]]
+
+diff_day1_0 <- diff_day1_0[which(rownames(diff_day1_0) %in% DE10_response) , ]
+
+#hist(diff_day1_0[1,], breaks=30)
+
+colnames(diff_day1_0) <- gene_exprs_day1_0[[2]]$`subject:ch1`
+
+GMM <-  Mclust(t(diff_day1_0),  G = 2)
+table(GMM$classification)
+
+km<- kmeans(t(diff_day1_0), 2, nstart = 25)
+table(km$cluster)
+
+table(GMM$classification , km$cluster)
+
+SE_male_dupRM_25up$response <- GMM$classification[match(SE_male_dupRM_25up$`subject:ch1`, names(GMM$classification)) ]
+```
+
+Out of 92 participants, GMM and K-means agree on the classification of 24+49=73 participants.  
+
+For downstream analysis of DE genes on response over time, I'm using result from GMM for now. If we are interested in K-means after I put more visualization, I can definitely switch. 
+
+# DE genes on response over time, using Day 1 - 14 data only
+
+```{r, eval = FALSE}
+
+genes <- rownames(SE_male_dupRM_25up)
+
+expres_test <- SE_male_dupRM_25up[ , which(SE_male_dupRM_25up$`time:ch1` != "Day0")]
+
+expres_test
+
+cov <- data.frame(ID = expres_test $`subject:ch1`,
+                  gender = expres_test $`gender:ch1`,
+                  time = as.character(expres_test $`time:ch1`),
+                  response = factor(expres_test $response))
+
+mix_test_response_time <- sapply( 1:nrow(SE_male_dupRM_25up), function(i) mixed_test2( gene = as.data.frame(expres_test@assays@data@listData[["exprs"]][which(rownames(expres_test) ==  genes[i]),]),
+  gene_name = genes[i],
+  covariates = cov,
+  fml = as.formula(gene ~ time*response + Error(ID)),
+  var_rowname = c("response_time")) )
+
+mix_test_response_time <- as.data.frame(unlist(mix_test_response_time))
+
+colnames(mix_test_response_time) <- c("p_value_mix_compsym")
+
+write.csv(mix_test_response_time, file = paste0(here(), "/code/2_DE_analysis/mix_response_time_pvalue_compsym.csv"))
+
+```
+
+
+#### BH-adjusted p-value
+
+57 DE genes on response over time for BH p-value cutoff = 0.05.
+
+340 DE genes on response over time for BH p-value cutoff = 0.1.
 
 ```{r}
-gene_exprs_day1_3 <- assay(SE_male_dupRM_25up)
+mix_test_response_time <- read.csv(file = paste0(here(), "/code/2_DE_analysis/mix_response_time_pvalue_compsym.csv"))
+rownames(mix_test_response_time) <- mix_test_response_time$X
+
+boxplot(mix_test_response_time$p_value_mix_compsym, main ="P-value from mixed model, gene ~ time*response + (1|ID)")
+
+# BH adjusted p-value
+mix_test_response_time$BH_pvalue <- p.adjust(mix_test_response_time$p_value_mix_compsym, method =  "BH", n = length(mix_test_response_time$p_value_mix_compsym))
+
+boxplot(mix_test_response_time$BH_pvalue, main ="BH adjusted P-value from mixed model, gene ~ time*response + 1|ID")
+
+DEgene_pvalue_BH_response <- mix_test_response_time %>% as.data.frame() %>% filter(BH_pvalue < 0.1)
+
+nrow(DEgene_pvalue_BH_response)
+
+```
+
+
+#### Heatmap, this is interesting
+
+
+```{r, fig.height=8, fig.width=8}
+
+DE_genes_response <- SE_male_dupRM_25up[which(rownames(SE_male_dupRM_25up) %in% rownames(DEgene_pvalue_BH_response%>% arrange(BH_pvalue))[1:50]), which(SE_male_dupRM_25up$`time:ch1` != "Day0")]
+
+colData(DE_genes_response)$time <- factor(colData(DE_genes_response)$`time:ch1`, levels = c("Day0", "Day1", "Day3", "Day14"))
+
+table(colData(DE_genes_response)$time)
+
+DE_genes_response_mean <- sapply(c( "Day1", "Day3", "Day14"), function(day) rowMeans(assay(
+DE_genes_response)[, which(colData(
+DE_genes_response)$time == day)]))
+
+pheatmap(DE_genes_response_mean, cluster_rows = TRUE,  cluster_cols = FALSE, scale = "row", 
+          main = "Heatmap on top 50 DE genes wrt response over time by BH adjusted p-values")
+
+```
+
+### Gene ontology enrichment analysis
+
+```{r, message = FALSE}
+
+DE_gene_response_name <- gost(query = DEgene_pvalue_BH_response$X, organism = "hsapiens", multi_query = FALSE,
+                     correction_method = "fdr", user_threshold = 0.01, source = "GO")
+
+head(DE_gene_response_name$result)
+
+table(DE_gene_response_name[["result"]][["source"]])
+
+colnames(DE_gene_response_name$result)
+
+gostplot(DE_gene_response_name, capped = TRUE, interactive = FALSE)
+
+DE_mod_response = DE_gene_response_name$result[,c("query",  "term_id",
+                                "term_name", "p_value", "query_size", 
+                                "intersection_size", "term_size", 
+                                "effective_domain_size", "intersection_size")]
+
+DE_mod_response$"GeneRatio" = paste0(DE_mod_response$intersection_size,  "/", DE_mod_response$query_size)
+DE_mod_response$BgRatio = paste0(DE_mod_response$term_size, "/", DE_mod_response$effective_domain_size)
+DE_mod_response$"pvalue" <- DE_mod_response$p_value
+DE_mod_response$Count <- DE_mod_response$intersection_size
+DE_mod_response$Description<- DE_mod_response$term_name
+DE_mod_response_enrich  <-  new("enrichResult", result = DE_mod_response)
+
+dotplot(DE_mod_response_enrich , x = 'GeneRatio', color = "pvalue")
+
 ```
