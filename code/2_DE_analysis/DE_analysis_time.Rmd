@@ -39,6 +39,24 @@ save(gset, file = "/Users/yu.zhang/Desktop/BIOS 784/Data/GSE48024/gset.RData")
 load("/Users/yu.zhang/Desktop/BIOS 784/Data/GSE48024/gset.RData")
 ```
 
+### Check data
+
+```{r, eval = FALSE}
+gset_male <- gset[[2]]
+
+length(unique(gset_male$`subject:ch1`))
+table(gset_male$`time:ch1`)
+
+male_all4 <- data.frame(table(gset_male$`subject:ch1`)) %>% filter(Freq == 4)
+
+gset_female <- gset[[1]]
+
+length(unique(gset_female$`subject:ch1`))
+table(gset_female$`time:ch1`)
+
+female_all4 <- data.frame(table(gset_female$`subject:ch1`)) %>% filter(Freq == 4)
+```
+
 # Working on male data
 
 ```{r}
@@ -46,7 +64,8 @@ gset_male <- gset[[2]]
 ```
 
 ```{r}
-boxplot(exprs(gset_male)[,sample(1:431, 10, replace=F)])
+boxplot(exprs(gset_male)[,sample(1:431, 10, replace=F)], 
+        main = "Ten random samples from male cohort")
 ```
 
 ## Subset to probes with gene name
@@ -146,6 +165,12 @@ mixed_test <- function(gene,gene_name, covariates, fml, var_rowname){
 
 mixed_test2 <- function(gene,gene_name, covariates, fml, var_rowname){
   
+   #gene = as.data.frame(SE_male_dupRM_25up@assays@data@listData[["exprs"]][which(rownames(SE_male_dupRM_25up) ==  genes[1]),])
+  #gene_name = genes[1]
+  #covariates = cov
+  #fml = as.formula(gene ~ time*response + Error(ID))
+  #var_rowname = c("response_time")
+  
   df_test <- cbind(gene , covariates)
   colnames(df_test)[1] <- "gene"
   mix_model <- aov(fml, data=df_test)
@@ -233,7 +258,7 @@ library(DOSE)
 library(gprofiler2)
 
 DE_gene_name <- gost(query = DEgene_pvalue_BH$X, organism = "hsapiens", multi_query = FALSE,
-                     correction_method = "fdr", user_threshold = 0.01, source = "GO")
+                     correction_method = "fdr", user_threshold = 0.01, source = "GO:BP")
 
 head(DE_gene_name$result)
 
@@ -248,7 +273,7 @@ gostplot(DE_gene_name, capped = TRUE, interactive = FALSE)
 DE_mod = DE_gene_name$result[,c("query",  "term_id",
                                 "term_name", "p_value", "query_size", 
                                 "intersection_size", "term_size", 
-                                "effective_domain_size", "intersection_size")]
+                                "effective_domain_size", "intersection_size", "source")]
 
 DE_mod$"GeneRatio" = paste0(DE_mod$intersection_size,  "/", DE_mod$query_size)
 DE_mod$BgRatio = paste0(DE_mod$term_size, "/", DE_mod$effective_domain_size)
@@ -257,7 +282,11 @@ DE_mod$Count <- DE_mod$intersection_size
 DE_mod$Description<- DE_mod$term_name
 DE_mod_enrich  <-  new("enrichResult", result = DE_mod)
 
-dotplot(DE_mod_enrich , x = 'GeneRatio', color = "pvalue")
+dotplot(DE_mod_enrich , x = 'GeneRatio', color = "pvalue") + ggtitle("GO: Biological process")
+
+#BP <-  new("enrichResult", result = DE_mod_enrich@result[which(DE_mod_enrich@result[["source"]] == "GO:BP") , ])
+
+#dotplot(BP , x = 'GeneRatio', color = "pvalue")
 
 ```
 
@@ -357,16 +386,12 @@ Interestingly, the results correspond to Table 1 assuming response 2 means the h
 
 genes <- rownames(SE_male_dupRM_25up)
 
-expres_test <- SE_male_dupRM_25up[ , which(SE_male_dupRM_25up$`time:ch1` != "Day0")]
+cov <- data.frame(ID = SE_male_dupRM_25up$`subject:ch1`,
+                  gender = SE_male_dupRM_25up$`gender:ch1`,
+                  time = factor(SE_male_dupRM_25up$`time:ch1`, level = c("Day0", "Day1", "Day3", "Day14")),
+                  response = factor(SE_male_dupRM_25up$response, level = c(1,2)))
 
-expres_test
-
-cov <- data.frame(ID = expres_test $`subject:ch1`,
-                  gender = expres_test $`gender:ch1`,
-                  time = as.character(expres_test $`time:ch1`),
-                  response = factor(expres_test $response))
-
-mix_test_response_time <- sapply( 1:nrow(SE_male_dupRM_25up), function(i) mixed_test2( gene = as.data.frame(expres_test@assays@data@listData[["exprs"]][which(rownames(expres_test) ==  genes[i]),]),
+mix_test_response_time <- sapply( 1:nrow(SE_male_dupRM_25up), function(i) mixed_test2( gene = as.data.frame(SE_male_dupRM_25up@assays@data@listData[["exprs"]][which(rownames(SE_male_dupRM_25up) ==  genes[i]),]),
   gene_name = genes[i],
   covariates = cov,
   fml = as.formula(gene ~ time*response + Error(ID)),
@@ -402,7 +427,7 @@ boxplot(mix_test_response_time$BH_pvalue, main ="BH adjusted P-value from mixed 
 
 hist(mix_test_response_time$BH_pvalue, main ="BH adjusted P-value from mixed model, gene ~ time*response + 1|ID")
 
-DEgene_pvalue_BH_response <- mix_test_response_time %>% as.data.frame() %>% filter(BH_pvalue < 0.1)
+DEgene_pvalue_BH_response <- mix_test_response_time %>% as.data.frame() %>% filter(BH_pvalue < 0.05)
 
 nrow(DEgene_pvalue_BH_response)
 
@@ -414,26 +439,26 @@ nrow(DEgene_pvalue_BH_response)
 
 ```{r, fig.height=8, fig.width=8}
 
-DE_genes_response <- SE_male_dupRM_25up[which(rownames(SE_male_dupRM_25up) %in% rownames(DEgene_pvalue_BH_response%>% arrange(BH_pvalue))[1:50]), which(SE_male_dupRM_25up$`time:ch1` != "Day0")]
+DE_genes_response <- SE_male_dupRM_25up[which(rownames(SE_male_dupRM_25up) %in% rownames(DEgene_pvalue_BH_response%>% arrange(BH_pvalue))[1:50] ), ]
 
 colData(DE_genes_response)$time <- factor(colData(DE_genes_response)$`time:ch1`, levels = c("Day0", "Day1", "Day3", "Day14"))
 
 table(colData(DE_genes_response)$time)
 
-DE_genes_response1_mean <- sapply(c( "Day1", "Day3", "Day14"), function(day) rowMeans(assay(
+DE_genes_response1_mean <- sapply(c( "Day0", "Day1", "Day3", "Day14"), function(day) rowMeans(assay(
 DE_genes_response)[, which(colData(
 DE_genes_response)$time == day & DE_genes_response$response == 1)]))
 
-DE_genes_response2_mean <- sapply(c( "Day1", "Day3", "Day14"), function(day) rowMeans(assay(
+DE_genes_response2_mean <- sapply(c( "Day0", "Day1", "Day3", "Day14"), function(day) rowMeans(assay(
 DE_genes_response)[, which(colData(
 DE_genes_response)$time == day & DE_genes_response$response == 2)]))
 
 
 pheatmap(DE_genes_response1_mean, cluster_rows = TRUE,  cluster_cols = FALSE, scale = "row", 
-          main = "Heatmap on top 50 DE genes wrt response 1 over time by BH adjusted p-values")
+          main = "Heatmap on top 50 DE genes wrt response over time among low responders")
 
 pheatmap(DE_genes_response2_mean, cluster_rows = TRUE,  cluster_cols = FALSE, scale = "row", 
-          main = "Heatmap on top 50 DE genes wrt response 2 over time by BH adjusted p-values")
+          main = "Heatmap on top 50 DE genes wrt response over time among high responders")
 
 ```
 
@@ -442,7 +467,7 @@ pheatmap(DE_genes_response2_mean, cluster_rows = TRUE,  cluster_cols = FALSE, sc
 ```{r, message = FALSE}
 
 DE_gene_response_name <- gost(query = DEgene_pvalue_BH_response$X, organism = "hsapiens", multi_query = FALSE,
-                     correction_method = "fdr", user_threshold = 0.01, source = "GO")
+                     correction_method = "fdr", user_threshold = 0.01, source = "GO:BP")
 
 head(DE_gene_response_name$result)
 
@@ -464,6 +489,6 @@ DE_mod_response$Count <- DE_mod_response$intersection_size
 DE_mod_response$Description<- DE_mod_response$term_name
 DE_mod_response_enrich  <-  new("enrichResult", result = DE_mod_response)
 
-dotplot(DE_mod_response_enrich , x = 'GeneRatio', color = "pvalue")
+dotplot(DE_mod_response_enrich , x = 'GeneRatio', color = "pvalue") + ggtitle("GO: Biological process")
 
 ```
