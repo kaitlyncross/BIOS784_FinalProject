@@ -1,0 +1,32 @@
+---
+title: "Gene Expression Response to Influenza Vaccination"
+author: "Kaitlyn Cross, Eunchong Kang, Yu (Sylvia) Zhang"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r load library, message = FALSE, echo = FALSE}
+library(ggplot2)
+library(dplyr)
+library(rmarkdown)
+library(knitr)
+```
+
+# Introduction
+
+# Data collection
+
+# Analysis plan
+
+# Pre-processing
+
+# Results
+
+## DE
+
+## GO analysis
+
+# Conclusion and discussion
+
+
+
