@@ -148,7 +148,7 @@ Next, we are interested in genes differentially expressed with respect to respon
 
 ## ADD HERE. Infer response part.
 
-Again, we fit mixed effect model where time and the interaction between time and response. 
+We fit mixed effect model where time and the interaction between time and response. 
 
 ## ADD HERE
 
