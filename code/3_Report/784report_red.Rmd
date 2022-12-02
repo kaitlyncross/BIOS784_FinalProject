@@ -36,10 +36,7 @@ Data for the study on trivalent influenza vaccine are deposited in National Cent
 
 ## Load data
 
-According to authors' note on GEO, data has been processed and normalized. 
-
-"Raw data underwent background adjustment, variance stabilization transformation, and robust spline normalization using R package lumi (available from Bioconductor) and function lumiExpresso(). 
-The data normalized by background adjustment, variance stabilization transformation, and robust spline normalization in R package lumi". 
+Two separate datasets are loaded, one for female cohort and another one for male cohort.
 
 ```{r}
 gset <- getGEO("GSE48024", GSEMatrix =TRUE, AnnotGPL=TRUE)
@@ -48,8 +45,12 @@ gset_female <- gset[[1]]
 gset_male <- gset[[2]]
 
 # Check gender 
-unique(gset_female$`gender:ch1`)
+unique(gset_female$`gender:ch1`) 
 unique(gset_male$`gender:ch1`)
+
+# Check sequencing platform 
+unique(gset_female$platform_id) #Illumina HumanHT-12 V4.0 expression beadchip
+unique(gset_male$platform_id) #Illumina HumanHT-12 V3.0 expression beadchip
 
 ```
 
@@ -65,14 +66,36 @@ ncol(gset_female)
 ncol(gset_male)
 ```
 
-We randomly select 10 samples from each cohort to check the distribution of normalized data.
+There are 47276 probes used for female cohort, and 48742 probes used for male cohort.
 
 ```{r}
+nrow(gset_female)
+nrow(gset_male)
+```
+
+Data has been processed and normalized according to desciprtion given in GEO. We randomly select 10 samples from each cohort to check the distribution of normalized data.
+
+```{r}
+# Data processing + normalization 
+unique(gset_male$data_processing)
+unique(gset_female$data_processing)
+
 boxplot(exprs(gset_male)[,sample(1:431, 10, replace=F)], 
         main = "Ten random samples from male cohort", ylab = "Gene expression")
 
 boxplot(exprs(gset_female)[,sample(1:417, 10, replace=F)], 
         main = "Ten random samples from female cohort", ylab = "Gene expression")
+
+```
+
+Last, we check how many samples at each sampling time for each cohort.
+
+```{r}
+# For female
+table(gset_female$`time:ch1`)
+
+# For male
+table(gset_male$`time:ch1`)
 
 ```
 
