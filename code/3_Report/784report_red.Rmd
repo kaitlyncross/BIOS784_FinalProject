@@ -142,7 +142,7 @@ We use repeated measures ANOVA (or Mixed effect ANOVA) to implement statistical 
 To examine gene expression across time before and after vaccination, mixed effect models are fitted on each gene with participants as random effect and time as fix effect. Further, time will be analyzed as a categorical variable. We will select participants who are sampled at all time points to have a balanced data, and use compound symmetry covariance structure for mixed effect model. Specifically, the mixed effect model is
 
 $$ expr_{ij} = \beta_0 + \beta_1I(time_{ij} = 1) + \beta_2I(time_{ij} = 3) + \beta_3I(time_{ij} = 14) + b_i + \varepsilon_{ij},$$
-where $b_i \sim N(=,\sigma^_b)$ and $\varepsilon_{ij} \sim N(0, \sigma_e^2 I_4)$ and $b_i \perp \!\!\! \perp \varepsilon_{ij}$.
+where $b_i \sim N(0, \sigma^2_b)$ and $\varepsilon_{ij} \sim N(0, \sigma_e^2 I_4)$ and $b_i \perp \!\!\! \perp \varepsilon_{ij}$.
 
 To determine differentially expressed (DE) genes across time, we use Wald test on
 $$
