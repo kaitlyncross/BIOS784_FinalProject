@@ -3,18 +3,36 @@ title: "Gene Expression Response to Influenza Vaccination"
 author: "Kaitlyn Cross, Eunchong Kang, Yu (Sylvia) Zhang"
 date: "`r Sys.Date()`"
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+  wrap: 80
 ---
 
-```{r load library, message = FALSE, echo = FALSE}
+```{r load library, message = FALSE}
 library(ggplot2)
 library(dplyr)
 library(rmarkdown)
 library(knitr)
+library(GEOquery)
+library(SummarizedExperiment)
+library(DESeq2)
+library(here)
+library(limma)
+library(nlme)
+library(MASS)
+library(multcomp)
+library(pheatmap)
+library(variancePartition)
+library(lme4)
+library("r2glmm")
 ```
 
 # Introduction
 
 # Data collection
+
+Data for the study on trivalent influenza vaccine are deposited in National Center for Biotechnology Information (NCBI) Gene Expression Omnibus (GEO) with accession GSE48024. A total of 119 male and 128 female between 19 to 41 years of age were recruited in the study. Whole blood samples were drawn before vaccination (day 0) and three time points after vaccination (day 1, 3 and 14). All male samples are sequenced using Illumina HumanHT-12 V3.0 expression beadchip and all female samples are sequence using Illumina HumanHT-12 V4.0 expression beadchip. 
 
 # Analysis plan
 
