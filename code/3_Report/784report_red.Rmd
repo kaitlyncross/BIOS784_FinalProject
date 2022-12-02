@@ -32,7 +32,49 @@ library("r2glmm")
 
 # Data collection
 
-Data for the study on trivalent influenza vaccine are deposited in National Center for Biotechnology Information (NCBI) Gene Expression Omnibus (GEO) with accession GSE48024. A total of 119 male and 128 female between 19 to 41 years of age were recruited in the study. Whole blood samples were drawn before vaccination (day 0) and three time points after vaccination (day 1, 3 and 14). All male samples are sequenced using Illumina HumanHT-12 V3.0 expression beadchip and all female samples are sequence using Illumina HumanHT-12 V4.0 expression beadchip. 
+Data for the study on trivalent influenza vaccine are deposited in National Center for Biotechnology Information (NCBI) Gene Expression Omnibus (GEO) with accession GSE48024. A total of 119 male and 128 female between 19 to 41 years of age were recruited in the study. Whole blood samples were drawn before vaccination (day 0) and at three time points after vaccination (day 1, 3 and 14). All male samples are sequenced using Illumina HumanHT-12 V3.0 expression beadchip and all female samples are sequence using Illumina HumanHT-12 V4.0 expression beadchip. 
+
+## Load data
+
+According to authors' note on GEO, data has been processed and normalized. 
+
+"Raw data underwent background adjustment, variance stabilization transformation, and robust spline normalization using R package lumi (available from Bioconductor) and function lumiExpresso(). 
+The data normalized by background adjustment, variance stabilization transformation, and robust spline normalization in R package lumi". 
+
+```{r}
+gset <- getGEO("GSE48024", GSEMatrix =TRUE, AnnotGPL=TRUE)
+
+gset_female <- gset[[1]]
+gset_male <- gset[[2]]
+
+# Check gender 
+unique(gset_female$`gender:ch1`)
+unique(gset_male$`gender:ch1`)
+
+```
+
+Based on the data loaded directly from GEO, 116 out of 119 males and 110 out of 128 females are available. A total of 417 samples from female cohort and 431 samples from male cohort.
+
+```{r}
+# Check number of subjects available in data
+length(unique(gset_female$`subject:ch1`))
+length(unique(gset_male$`subject:ch1`))
+
+# Check number of samples available in data
+ncol(gset_female)
+ncol(gset_male)
+```
+
+We randomly select 10 samples from each cohort to check the distribution of normalized data.
+
+```{r}
+boxplot(exprs(gset_male)[,sample(1:431, 10, replace=F)], 
+        main = "Ten random samples from male cohort", ylab = "Gene expression")
+
+boxplot(exprs(gset_female)[,sample(1:417, 10, replace=F)], 
+        main = "Ten random samples from female cohort", ylab = "Gene expression")
+
+```
 
 # Analysis plan
 
