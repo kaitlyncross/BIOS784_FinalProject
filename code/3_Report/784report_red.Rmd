@@ -36,11 +36,26 @@ library(enrichplot)
 
 # Introduction
 
+The development of effective vaccines to prevent the spread of infectious disease is one of the greatest public 
+health achievements of the 20th century. While effective vaccines are available for most widespread infectious
+diseases, the exact efficacy of the vaccines in terms of individual protection against acquiring disease are
+variable based on the disease itself and the vaccine platform. A strong area of interest in vaccine development
+is identifying technologies and strategies for increasing the strength and duration of immune response to vaccination. Influenza vaccines in particular are known to have limited efficacy and duration, and developing a
+long-lasting universal influenza vaccine is a top target of the NIH's National Institute for Allergy and Infectious
+Diseases (NIAID).
+
+One way to measure a vaccine's impact in an individual is to measure specific immune products, called correlates of protection (CoP), that are known indicators of a vaccine's efficacy. In influenza vaccines, common CoPs are 
+Hemagglutination Inhibition (HAI) and Neutralizing (Neut) antibodies. These antibodies are the end products of the
+complex immune response inititated at the vaccination event. One goal among vaccine experts currently is to better
+understand the underlying differences between individuals who have a robust immune response to a particular vaccine (high antibody titers, indicating low likelihood of infection) versus those who have little to no response to the same stimulus. One way to examine for the underlying differences in biological processes is to take a global look
+at gene expression in response to vaccination, and to identify genes or pathways that are differentially expressed between high and low responders. This is the approach that Bucasas et. al. took. In our project, we will replicate
+the analysis approach using data accessed from the National Center for Biotechnology Information (NCBI) Gene Expression Omnibus (GEO).
+
 # Data collection
 
-Data for the study on trivalent influenza vaccine are deposited in National Center for Biotechnology Information (NCBI) Gene Expression Omnibus (GEO) with accession GSE48024. It was published in 2013. 
+Data for the study on trivalent influenza vaccine are deposited in National Center for Biotechnology Information (NCBI) Gene Expression Omnibus (GEO) with accession GSE48024. The manuscript describing results found by the study group in the male cohort was published in 2011. Data was published to the NCBI GEO in 2013. 
 
-A total of 119 male and 128 female between 19 to 41 years of age were recruited in the study. Whole blood samples were drawn before vaccination (day 0) and at three time points after vaccination (day 1, 3 and 14). All male samples are sequenced using Illumina HumanHT-12 V3.0 expression beadchip and all female samples are sequence using Illumina HumanHT-12 V4.0 expression beadchip. 
+A total of 119 males and 128 females between 19 to 41 years of age were recruited in the study and vaccinated with trivalent influenza vaccine. Whole blood samples were drawn before vaccination (day 0) and at three time points after vaccination (day 1, 3 and 14). All male samples are sequenced using Illumina HumanHT-12 V3.0 expression beadchip and all female samples are sequence using Illumina HumanHT-12 V4.0 expression beadchip. 
 
 ### Load data
 
@@ -241,7 +256,7 @@ SE_female_dupRM_25up
 
 ### GMM clustering to infer response to vaccination
 
-Data on antibody titer are deposited on dbGaP with restricted access. Thus, we use 11 differentiallyt expressed genes with respect to response given by authors to differentiate high response and low response after vaccination. These 11 genes are found using male cohort.
+Data on antibody titer are deposited on dbGaP with restricted access. Thus, we use 11 differentially expressed genes with respect to response given by authors to differentiate high response and low response after vaccination. These 11 genes are found using male cohort.
 
 Gene PRDX2 are not present in both female and male cohort after data pre-processing.
 
@@ -664,5 +679,6 @@ GO_analysis(rownames(DEresponse_female))
 
 # Conclusion and discussion
 
+The overarching results expressed in the original paper were replicated well for the male cohort, despite having incomplete information on actual response status. Differential expression peaked on Day 1 post vaccination, and the majority of genes that were differentially expressed when accounting for response status were related to immunological biological processes. This result was not consistent in the female cohort, where subjects assigned a high response showed over-expression at Day 0 compared to post-vaccination, and none of the top Gene Ontology terms related to biological process involved the immune response. This may indicate a difference in sexes, but is more likely an artifact of misclassification errors, as the 11 genes used to predict response category were identified in the male data. The response patterns over time, without respect to response status, look similar in terms of expression changes, significance, and GO terms, between males and females.
 
-
+The two main takeaways from this data are the overall timing of the expression patterns, and potential pathways to examine to see if they can be targeted in the development of novel vaccines or adjuvants (molecules co-administered with vaccines to enhance immune response). In particular, the results of this study indicate that sampling for gene expression at Day 1 post vaccination could be a useful addition in early-phase vaccine studies, as expression at this timepoint gives the most information about the pathways triggered, and could in extreme cases (such as future pandemics) provide immediate insight into vaccine efficacy, should expression correlates be well established.
