@@ -2,7 +2,10 @@
 title: "Gene Expression Response to Influenza Vaccination"
 author: "Kaitlyn Cross, Eunchong Kang, Yu (Sylvia) Zhang"
 date: "`r Sys.Date()`"
-output: html_document
+output:   
+  html_document:
+        toc: true
+        toc_float: true
 editor_options: 
   markdown: 
     wrap: 72
@@ -527,7 +530,7 @@ Please refer to Rmd file for code.
 
 ### Analysis with respect to time
 
-We fit mixed effect model, and extract p-value on testing the fixed effect of interaction between response and time. P-values are further adusted using Benjamini-Hotchberg method.
+We fit mixed effect model, and extract p-value on testing the fixed effect of interaction between response and time. P-values are further adjusted using Benjamini-Hotchberg method.
 
 ```{r, echo = FALSE}
 
