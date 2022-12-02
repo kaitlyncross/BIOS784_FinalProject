@@ -345,7 +345,7 @@ SE_female_dupRM_25up$response <- factor(GMM_female$classification[match(SE_femal
 
 # Results
 
-We first define functions for analysis.
+We first define few functions used for analysis.
 
 ```{r}
 
@@ -385,7 +385,7 @@ GO_analysis <- function(genes){
 
 ## Male cohort
 
-### Analysis wrt time
+### Analysis with respect to time
 
 We first fit mixed effect model, then extract p-value from testing the effect on time variable which is treated as categorical variable.
 
@@ -451,7 +451,7 @@ There are 1550 GO terms showed significant association with 4540 DE genes found 
 GO_analysis(rownames(DEtime_male))
 ```
 
-### Analysis wrt interaction between time and response
+### Analysis with respect to response across time
 
 Variable response is inferred using GMM in previous section. 
 
@@ -486,7 +486,7 @@ DEresponse_male <- mix_test_response_time_male %>% as.data.frame() %>% filter(BH
 nrow(DEresponse_male)
 ```
 
-We plot heatmap on top 50 DE genes by BH adjusted p-value. For male cohort, the top 50 DE genes are predominantly up-regulated at day 1 after vaccination. This is consistent with what authors reported in their paper. 
+We plot heatmap on top 50 DE genes by BH adjusted p-value. For male cohort, the top 50 DE genes are predominantly up-regulated at day 1 among high responders after vaccination. There are few genes that are down-regulated at day 1among high responders after vaccination.
 
 ```{r, fig.height=10, fig.width=8}
 DE50response_male <- SE_male_dupRM_25up[which(rownames(SE_male_dupRM_25up) %in% rownames(DEresponse_male %>% arrange(BH_pvalue))[1:50]), ]
@@ -520,6 +520,144 @@ There are 483 GO terms showed significant association with 573 DE genes found wi
 GO_analysis(rownames(DEresponse_male))
 
 ```
+
+## Female cohort
+
+Please refer to Rmd file for code.
+
+### Analysis with respect to time
+
+We fit mixed effect model, and extract p-value on testing the fixed effect of interaction between response and time. P-values are further adusted using Benjamini-Hotchberg method.
+
+```{r, echo = FALSE}
+
+cov_female <- data.frame(ID = SE_female_dupRM_25up$ID,
+                  time = SE_female_dupRM_25up$time,
+                  response = SE_female_dupRM_25up$response)
+
+genes_female <- rownames(SE_female_dupRM_25up)
+mix_test_time_female <- sapply( 1: nrow(SE_female_dupRM_25up),
+                            function(i) mixed_test( gene = as.vector(SE_female_dupRM_25up@assays@data@listData[["exprs"]][i,]),
+                                                         gene_name = genes_female[i],
+                                                         covariates = cov_female,
+                                                         fml = as.formula(gene ~ time + Error(ID)),
+                                                         var_rowname = c("time"),
+                                                         j = 1))
+mix_test_time_female <- as.data.frame(unlist(mix_test_time_female))  
+colnames(mix_test_time_female) <- c("pvalue")
+
+hist(mix_test_time_female$pvalue, main ="P-value from fix effect of time", xlab="P-value")
+
+```
+
+```{r, echo = FALSE}
+# BH adjusted p-value
+mix_test_time_female$BH_pvalue <- p.adjust(mix_test_time_female$pvalue, method =  "BH", n = length(mix_test_time_female$pvalue))
+
+hist(mix_test_time_female$BH_pvalue, main ="BH adjusted p-value from fix effect of time", xlab="BH adjusted p-value")
+
+```
+
+Controlling for 1% of false discovery rate, there are 6118 differentially expressed (DE) genes across time in the male cohort.
+
+```{r , echo = FALSE}
+DEtime_female <- mix_test_time_female %>% as.data.frame() %>% filter(BH_pvalue < 0.01)
+
+nrow(DEtime_female)
+```
+
+We plot heatmap on top 50 DE genes by BH adjusted p-value. For female cohort, the top 50 DE genes are all up-regulated at day 1 after vaccination. 
+
+```{r, fig.height=10, fig.width=8 , echo = FALSE}
+DE50_female <- SE_female_dupRM_25up[which(rownames(SE_female_dupRM_25up) %in% rownames(DEtime_female %>% arrange(BH_pvalue))[1:50]), ]
+
+colData(DE50_female)$time <- factor(colData(DE50_female)$time, levels = c("Day0", "Day1", "Day3", "Day14"))
+
+DE50_male_femean <- sapply(c("Day0", "Day1", "Day3", "Day14"), function(day) rowMeans(assay(DE50_female)[, which(colData(DE50_female)$time == day)]))
+
+pheatmap(DE50_male_femean, cluster_rows = TRUE,  cluster_cols = FALSE, scale = "row", 
+          main = "Mean expression of top 50 DE genes wrt time by BH adjusted p-values")
+
+```
+
+There are 1682 GO terms showed significant association with 6118 DE genes found with respect to time. Some of the top GO term related to immune response and stress are what we expected after vaccination. 
+
+```{r , echo = FALSE}
+
+GO_analysis(rownames(DEtime_female))
+```
+
+### Analysis with respect to response across time
+
+Response variable is inferred using GMM in previous section. We fit a mixed effect model including interaction between response and time as fixed effect. Then p-values on testing the effect of the interaction is extracted, then adjusted using Benjamini-Hotchberg method.
+
+```{r, echo = FALSE}
+
+mix_test_response_time_female <- sapply( 1: nrow(SE_female_dupRM_25up),
+                            function(i) mixed_test( gene = as.vector(SE_female_dupRM_25up@assays@data@listData[["exprs"]][i,]),
+                                                         gene_name = genes_female[i],
+                                                         covariates = cov_female,
+                                                         fml = as.formula(gene ~ time*response + Error(ID)),
+                                                         var_rowname = c("time"),
+                                                         j = 2))
+
+mix_test_response_time_female <- as.data.frame(unlist(mix_test_response_time_female))
+
+colnames(mix_test_response_time_female) <- c("pvalue")
+
+hist(mix_test_response_time_female$pvalue, main ="P-value from fix effect of time*response", xlab="P-value")
+
+# BH adjusted p-value
+mix_test_response_time_female$BH_pvalue <- p.adjust(mix_test_response_time_female$pvalue, method =  "BH", n = length(mix_test_response_time_female$pvalue))
+
+hist(mix_test_response_time_female$BH_pvalue, main ="BH adjusted p-value from fix effect of time*response", xlab="BH adjusted p-value")
+
+```
+
+
+Controlling for 5% of false discovery rate, there are 3217 differentially expressed (DE) genes across time in the male cohort.
+
+```{r, echo = FALSE}
+DEresponse_female <- mix_test_response_time_female %>% as.data.frame() %>% filter(BH_pvalue < 0.05)
+
+nrow(DEresponse_female)
+```
+
+We plot heatmap on top 50 DE genes by BH adjusted p-value. Among the top 50 DE genes, majority are down-regulated at all time points among high responders after vaccination. This is different than the result shown for male analysis.
+
+```{r, fig.height=10, fig.width=8, echo = FALSE}
+DE50response_female <- SE_female_dupRM_25up[which(rownames(SE_female_dupRM_25up) %in% rownames(DEresponse_female %>% arrange(BH_pvalue))[1:50]), ]
+
+colData(DE50response_female)$time <- factor(colData(DE50response_female)$time, levels = c("Day0", "Day1", "Day3", "Day14"))
+
+DE_response1_mean_female <- sapply(c( "Day0", "Day1", "Day3", "Day14"), function(day) rowMeans(assay(
+DE50response_female)[, which(colData(
+DE50response_female)$time == day & DE50response_female$response == 1)]))
+colnames(DE_response1_mean_female) <- paste0(colnames(DE_response1_mean_female), "_low")
+
+DE_response2_mean_female <- sapply(c( "Day0", "Day1", "Day3", "Day14"), function(day) rowMeans(assay(
+DE50response_female)[, which(colData(
+DE50response_female)$time == day & DE50response_female$response == 2)]))
+colnames(DE_response2_mean_female) <- paste0(colnames(DE_response2_mean_female), "_high")
+
+Group_female <- data.frame( Group = c(rep("Low responder",4), rep("High responder", 4)))
+rownames(Group_female) <- c(colnames(DE_response1_mean_female), colnames(DE_response2_mean_female))
+
+pheatmap(cbind(DE_response1_mean_female,DE_response2_mean_female), 
+         cluster_rows = TRUE,  cluster_cols = FALSE, scale = "row", 
+         main = "Mean expression on top 50 DE genes wrt response over time", 
+         annotation_col = Group_female)
+
+
+```
+
+There are 730 GO terms showed significant association with 3217 DE genes found with respect to response over time. The top GO terms are different as compared to the analysis on male cohort. 
+
+```{r, echo = FALSE}
+GO_analysis(rownames(DEresponse_female))
+
+```
+
 
 # Conclusion and discussion
 
