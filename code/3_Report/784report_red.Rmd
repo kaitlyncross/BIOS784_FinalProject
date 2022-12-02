@@ -133,6 +133,12 @@ Because female and male cohorts are sequenced using different platforms, all fur
 
 # Analysis plan
 
+## Statistical Model
+
+We use repeated measures ANOVA (or Mixed effect ANOVA) to implement statistical analysis. It is suitable for a well-balanced data with correlation in observations. The advantage of the model is that it does not need an assumption of a linearity or any curve so that we do not need any consideration on the shape of trajectories between time points. Also, it is impossible to check linearity assumption for all over 14,000 genes. The disadvantage of this model is that we can't say about the trend. For example, the model and its result cannot provide any inference on how gene expression level changes between day 3 and day 14.
+
+## DE genes across Time
+
 To examine gene expression across time before and after vaccination, mixed effect models are fitted on each gene with participants as random effect and time as fix effect. Further, time will be analyzed as a categorical variable. We will select participants who are sampled at all time points to have a balanced data, and use compound symmetry covariance structure for mixed effect model. Specifically, the mixed effect model is
 
 $$ expr_{ij} = \beta_0 + \beta_1I(time_{ij} = 1) + \beta_2I(time_{ij} = 3) + \beta_3I(time_{ij} = 14) + b_i + \varepsilon_{ij},$$
@@ -144,18 +150,25 @@ H_0: \beta_1 = \beta_2 = \beta_3 = 0, \hspace{1cm} vs.  \hspace{1cm} H_\alpha: \
 $$
 Essentially, this test detects genes showing different expressions in at least one time point among day 0, 1, 3 and 14. P-values from Wald test are adjusted using Benjamini-Hotchberg (BH) method, and false discovery rate is controlled at 1%. Then Gene Ontology (GO) enrichment analysis will be conducted on the DE genes. 
 
+## DE genes with respect to Response across Time
+
 Next, we are interested in genes differentially expressed with respect to response to vaccination across time. Information on antibody titer is not publicly available, hence response to vaccination is inferred for each paticipant using differentially expressed genes with respect to response found and reported by authors. Gaussian mixture model (GMM) will be used to cluster participants into high responder group and low responder group. Difference between day 1 and day 0 of gene expression is used for GMM. Group assignment is based on visualization of the difference in gene expression. 
 
 After response to vaccination is obtained, mixed effect model is fitted on each gene as shown below,
 $$
+\begin{align}
+    expr_{ij} =\, & \beta_0 + \beta_1I(time_{ij}=1) + \beta_2I(time_{ij}=3) + \beta_3I(time_{ij}=14) + \beta_4I(response_{i} = high)\\
+    &+\beta_5I(time_{ij}=1)I(response_{i} = high) + \beta_6I(time_{ij}=3)I(response_{i} = high) \\
+    &+ \beta_7I(time_{ij}=14)I(response_{i} = high) + b_i + e_{ij}
+\end{align}
 $$
+where $i$ indicates subject and $j$ does time, $b_i \sim N(0, \sigma^2_b)$, $e_i \sim MVN(0, \sigma^2_eI_4)$ and $b_i \bot e_{ij}$.
 
+The response variable inferred from GMM and its interaction with time variable are added to the model as a categorical variable. The test is about whether the interaction term is important in the model and detects genes showing the unequal difference between two response groups at-least one time point among day 0, 1, 3, and 14. Then, we extract p-value from the test. And, the hypothesis is $H_0: \beta_5 = \beta_6 = \beta_7 = 0$ and $H_a: \beta_5 \neq  0 \,or\, \beta_6 \neq 0 \,or\, \beta_7 \neq 0$.
 
-Mixed effect model blah blah ... 
+P-values from Wald test are adjusted using Benjamini-Hotchberg (BH) method, and false discovery rate is controlled at 5%. Then Gene Ontology (GO) enrichment analysis will be conducted on the DE genes. 
 
-FDR for this test is controlled at 5%.
-
-## ADD HERE
+However, this analysis has a problem, which is it may detect the genes used clustering and its related genes with high significance because grouping is created by the difference of day 1 and day 0 in the genes listed in the pre-process. Therefore, the result should be carefully interpreted for this analysis.
 
 
 # Pre-processing
@@ -442,11 +455,15 @@ GO_analysis <- function(genes){
 
 ```
 
+
+
+
 ## Male cohort
 
 ### Analysis with respect to time
 
-We first fit mixed effect model, then extract p-value from testing the fix effect on time which is treated as categorical variable.
+We first fit mixed effect model, then extract p-value from testing the fix effect on time which is treated as categorical variable. 
+
 
 ```{r}
 
@@ -512,7 +529,8 @@ GO_analysis(rownames(DEtime_male))
 
 ### Analysis with respect to response across time
 
-Variable response is inferred using GMM in previous section. 
+We fit mixed effect model described above, then extract p-values and adjust by using Benjamini-Hochberg method.
+
 
 ```{r}
 
@@ -545,7 +563,7 @@ DEresponse_male <- mix_test_response_time_male %>% as.data.frame() %>% filter(BH
 nrow(DEresponse_male)
 ```
 
-We plot heatmap on top 50 DE genes by BH adjusted p-value. For male cohort, the top 50 DE genes are predominantly up-regulated at day 1 among high responders after vaccination. There are few genes that are down-regulated at day 1among high responders after vaccination.
+We plot heatmap on top 50 DE genes by BH adjusted p-value. For male cohort, the top 50 DE genes are predominantly up-regulated at day 1 among high responders after vaccination. There are few genes that are down-regulated at day 1 among high responders after vaccination.
 
 ```{r, fig.height=10, fig.width=8}
 DE50response_male <- SE_male_dupRM_25up[which(rownames(SE_male_dupRM_25up) %in% rownames(DEresponse_male %>% arrange(BH_pvalue))[1:50]), ]
