@@ -146,7 +146,7 @@ Essentially, this test detects genes showing different expressions in at least o
 
 Next, we are interested in genes differentially expressed with respect to response to vaccination across time. Information on antibody titer is not publicly available, hence response to vaccination is inferred for each paticipant using differentially expressed genes with respect to response found and reported by authors. Gaussian mixture model (GMM) will be used to cluster participants into high responder group and low responder group. Difference between day 1 and day 0 of gene expression is used for GMM. Group assignment is based on visualization of the difference in gene expression. 
 
-After response to vacciantion is obtained, mixed effect model is fitted on each gene as shown below,
+After response to vaccination is obtained, mixed effect model is fitted on each gene as shown below,
 $$
 $$
 
