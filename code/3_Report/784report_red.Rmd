@@ -142,13 +142,15 @@ To determine differentially expressed (DE) genes across time, we use Wald test o
 $$
 H_0: \beta_1 = \beta_2 = \beta_3 = 0, \hspace{1cm} vs.  \hspace{1cm} H_\alpha: \beta_1 \neq 0 \text{ or } \beta_2 \neq 0 \text{ or } \beta_3 \neq 0.
 $$
-Essentially, this test detects genes showing different expressions in at least one time point among day 0, 1, 3 and 14. P-values from Wald test are adjusted using Benjamini-Hotchberg (BH) method, and false discory rate is controlled at 1%. Then Gene Ontology (GO) enrichment analysis will be conducted on the DE genes. 
+Essentially, this test detects genes showing different expressions in at least one time point among day 0, 1, 3 and 14. P-values from Wald test are adjusted using Benjamini-Hotchberg (BH) method, and false discovery rate is controlled at 1%. Then Gene Ontology (GO) enrichment analysis will be conducted on the DE genes. 
 
 Next, we are interested in genes differentially expressed with respect to response to vaccination across time. 
 
 ## ADD HERE. Infer response part.
 
-We fit mixed effect model where time and the interaction between time and response. 
+Mixed effect model blah blah ... 
+
+FDR for this test is controlled at 5%.
 
 ## ADD HERE
 
