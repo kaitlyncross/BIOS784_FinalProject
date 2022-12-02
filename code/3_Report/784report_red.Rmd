@@ -34,7 +34,7 @@ library("r2glmm")
 
 Data for the study on trivalent influenza vaccine are deposited in National Center for Biotechnology Information (NCBI) Gene Expression Omnibus (GEO) with accession GSE48024. A total of 119 male and 128 female between 19 to 41 years of age were recruited in the study. Whole blood samples were drawn before vaccination (day 0) and at three time points after vaccination (day 1, 3 and 14). All male samples are sequenced using Illumina HumanHT-12 V3.0 expression beadchip and all female samples are sequence using Illumina HumanHT-12 V4.0 expression beadchip. 
 
-## Load data
+### Load data
 
 Two separate datasets are loaded, one for female cohort and another one for male cohort.
 
@@ -46,30 +46,36 @@ gset_male <- gset[[2]]
 
 # Check gender 
 unique(gset_female$`gender:ch1`) 
+# Check gender 
 unique(gset_male$`gender:ch1`)
 
 # Check sequencing platform 
 unique(gset_female$platform_id) #Illumina HumanHT-12 V4.0 expression beadchip
+# Check sequencing platform 
 unique(gset_male$platform_id) #Illumina HumanHT-12 V3.0 expression beadchip
 
 ```
 
-Based on the data loaded directly from GEO, 116 out of 119 males and 110 out of 128 females are available. A total of 417 samples from female cohort and 431 samples from male cohort.
+Based on the data loaded directly from GEO, 116 out of 119 males and 110 out of 128 females are available. A total of 417 samples are from female cohort and 431 samples are from male cohort.
 
 ```{r}
 # Check number of subjects available in data
 length(unique(gset_female$`subject:ch1`))
+# Check number of subjects available in data
 length(unique(gset_male$`subject:ch1`))
 
 # Check number of samples available in data
 ncol(gset_female)
+# Check number of samples available in data
 ncol(gset_male)
 ```
 
 There are 47276 probes used for female cohort, and 48742 probes used for male cohort.
 
 ```{r}
+# Check number of probes
 nrow(gset_female)
+# Check number of probes
 nrow(gset_male)
 ```
 
@@ -78,6 +84,7 @@ Data has been processed and normalized according to desciprtion given in GEO. We
 ```{r}
 # Data processing + normalization 
 unique(gset_male$data_processing)
+# Data processing + normalization 
 unique(gset_female$data_processing)
 
 boxplot(exprs(gset_male)[,sample(1:431, 10, replace=F)], 
@@ -98,6 +105,8 @@ table(gset_female$`time:ch1`)
 table(gset_male$`time:ch1`)
 
 ```
+
+Because female and male cohorts are sequenced using different platforms, all further data processing and analysis will be done separately. 
 
 # Analysis plan
 
