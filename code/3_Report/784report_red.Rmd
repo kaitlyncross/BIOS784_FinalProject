@@ -32,7 +32,9 @@ library("r2glmm")
 
 # Data collection
 
-Data for the study on trivalent influenza vaccine are deposited in National Center for Biotechnology Information (NCBI) Gene Expression Omnibus (GEO) with accession GSE48024. A total of 119 male and 128 female between 19 to 41 years of age were recruited in the study. Whole blood samples were drawn before vaccination (day 0) and at three time points after vaccination (day 1, 3 and 14). All male samples are sequenced using Illumina HumanHT-12 V3.0 expression beadchip and all female samples are sequence using Illumina HumanHT-12 V4.0 expression beadchip. 
+Data for the study on trivalent influenza vaccine are deposited in National Center for Biotechnology Information (NCBI) Gene Expression Omnibus (GEO) with accession GSE48024. It was published in 2013. 
+
+A total of 119 male and 128 female between 19 to 41 years of age were recruited in the study. Whole blood samples were drawn before vaccination (day 0) and at three time points after vaccination (day 1, 3 and 14). All male samples are sequenced using Illumina HumanHT-12 V3.0 expression beadchip and all female samples are sequence using Illumina HumanHT-12 V4.0 expression beadchip. 
 
 ### Load data
 
@@ -79,7 +81,7 @@ nrow(gset_female)
 nrow(gset_male)
 ```
 
-Data has been processed and normalized according to desciprtion given in GEO. We randomly select 10 samples from each cohort to check the distribution of normalized data.
+Data has been processed and normalized according to description given in GEO. We randomly select 10 samples from each cohort to check the distribution of normalized data.
 
 ```{r}
 # Data processing + normalization 
@@ -112,6 +114,125 @@ Because female and male cohorts are sequenced using different platforms, all fur
 
 # Pre-processing
 
+First to setup SummarizedExperiment object.
+
+```{r}
+SE_male  <- SummarizedExperiment(assay = list("exprs" = exprs(gset_male)),
+                                  colData = as(gset_male@phenoData, "data.frame"),
+                                  rowData = as(gset_male@featureData, "data.frame"))
+
+SE_female  <- SummarizedExperiment(assay = list("exprs" = exprs(gset_female)),
+                                  colData = as(gset_female@phenoData, "data.frame"),
+                                  rowData = as(gset_female@featureData, "data.frame"))
+
+# Create few variables with better names 
+SE_male$time <- factor(SE_male$`time:ch1`, levels = c("Day0", "Day1", "Day3", "Day14"))
+SE_male$ID <- SE_male$`subject:ch1`
+SE_female$time <- factor(SE_female$`time:ch1`, levels = c("Day0", "Day1", "Day3", "Day14"))
+SE_female$ID <- SE_female$`subject:ch1`
+
+```
+
+### Filter samples
+
+As we have seen in Data Collection section, not all participants are sampled at all four time points. Thus, we keep those who sampled at all time. 
+
+```{r}
+male.all <- as.data.frame(table(SE_male$ID)) %>% filter(Freq == 4) %>% rename( "Var1" = "ID")
+female.all <- as.data.frame(table(SE_female$ID)) %>% filter(Freq == 4) %>% rename( "Var1" = "ID")
+
+SE_male <- SE_male[, which(SE_male$ID %in% male.all$ID)]
+SE_female <- SE_female[, which(SE_female$ID %in% female.all$ID)]
+```
+
+There are 92 males and 87 females sampled at all four time points. These will be used for downstream analysis. 
+
+```{r}
+table(SE_male$time)
+
+table(SE_female$time)
+```
+
+### Filter probes/genes
+
+#### Step 1: We first subset to probes with corresponding gene symbols.
+
+Probes for male cohort: 48742 -> 29228 
+
+Probes for female cohort: 47276 -> 31243
+
+```{r}
+
+gset_male <- gset_male[which(gset_male@featureData@data[["Gene symbol"]] != ""), ]
+nrow(gset_male)
+
+gset_female <- gset_female[which(gset_female@featureData@data[["Gene symbol"]] != ""), ]
+nrow(gset_female)
+
+
+
+```
+
+#### Step 2: Average expression for probes correponding to the same gene name. 
+
+Using limma() package.
+
+Probes for male cohort: 29228 -> 19590
+
+Probes for female cohort: 31243 -> 20751
+
+````{r}
+dupRM_male <-  avereps(assays(SE_male)$exprs, ID=rowData(SE_male)$"Gene symbol")
+nrow(dupRM_male)
+
+dupRM_female <-  avereps(assays(SE_female)$exprs, ID=rowData(SE_female)$"Gene symbol")
+nrow(dupRM_female)
+
+```
+
+Update SummarizeExperiment object with updated expression matrix.
+
+```{r}
+# Make sure samples are ordered the same
+all.equal(colnames(dupRM_male) , rownames(SE_male@colData))
+
+SE_male_dupRM <- SummarizedExperiment(assay = list("exprs" = dupRM_male),
+                                  colData = SE_male@colData)
+
+all.equal(colnames(dupRM_female) , rownames(SE_female@colData))
+
+SE_female_dupRM <- SummarizedExperiment(assay = list("exprs" = dupRM_female),
+                                  colData = SE_female@colData)
+
+```
+
+#### Step 3: Keep top 75% most variance probes/genes for efficient downstream analysis.
+
+Probes for male cohort: 19590 -> 14692
+
+Probes for female cohort: 20751 -> 15563
+
+```{r}
+rowData(SE_male_dupRM)$gene_variance <- rowVars(assays(SE_male_dupRM)$exprs)
+quantile(rowData(SE_male_dupRM)$gene_variance)
+
+SE_male_dupRM_25up <- SE_male_dupRM[which(rowData(SE_male_dupRM)$gene_variance > 0.0022386139), ]
+
+rowData(SE_female_dupRM)$gene_variance <- rowVars(assays(SE_female_dupRM)$exprs)
+quantile(rowData(SE_female_dupRM)$gene_variance)
+
+SE_female_dupRM_25up <- SE_female_dupRM[which(rowData(SE_female_dupRM)$gene_variance > 0.0070110061), ]
+
+```
+
+For downstream analysis, we use 14692 unique genes and 368 samples from the male cohort, and 15563 genes with 348 samples from the female cohort.
+
+```{r}
+SE_male_dupRM_25up
+
+SE_female_dupRM_25up
+
+```
 # Results
 
 ## DE
