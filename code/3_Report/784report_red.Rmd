@@ -135,7 +135,7 @@ Because female and male cohorts are sequenced using different platforms, all fur
 
 # Pre-processing
 
-First to setup SummarizedExperiment object.
+First to setup SummarizedExperiment object:
 
 ```{r}
 SE_male  <- SummarizedExperiment(assay = list("exprs" = exprs(gset_male)),
@@ -156,7 +156,7 @@ SE_female$ID <- SE_female$`subject:ch1`
 
 ### Filter samples
 
-As we have seen in Data Collection section, not all participants are sampled at all four time points. Thus, we keep those who sampled at all time. 
+As shown in Data Collection section, not all participants are sampled at all four time points. Thus, we keep those who sampled at all time. 
 
 ```{r}
 male.all <- as.data.frame(table(SE_male$ID)) %>% filter(Freq == 4) %>% rename( "Var1" = "ID")
@@ -176,11 +176,11 @@ table(SE_female$time)
 
 ### Filter probes/genes
 
-#### Step 1: We first subset to probes with corresponding gene symbols.
+#### Step 1: Subset to probes with corresponding gene symbols.
 
-Probes for male cohort: 48742 -> 29228 
+Probes for male cohort reduces from 48742 to 29228. 
 
-Probes for female cohort: 47276 -> 31243
+Probes for female cohort reduces from 47276 to 31243.
 
 ```{r}
 
@@ -198,9 +198,9 @@ nrow(gset_female)
 
 Using limma() package.
 
-Probes for male cohort: 29228 -> 19590
+Probes for male cohort reduces from 29228 to 19590.
 
-Probes for female cohort: 31243 -> 20751
+Probes for female cohort reduces from 31243 to 20751.
 
 ```{r}
 dupRM_male <-  avereps(assays(SE_male)$exprs, ID=rowData(SE_male)$"Gene symbol")
@@ -211,7 +211,7 @@ nrow(dupRM_female)
 
 ```
 
-Update SummarizeExperiment object with updated expression matrix.
+Update SummarizeExperiment object with expression matrix where duplicated genes' expression are averaged.
 
 ```{r}
 # Make sure samples are ordered the same
@@ -227,11 +227,11 @@ SE_female_dupRM <- SummarizedExperiment(assay = list("exprs" = dupRM_female),
 
 ```
 
-#### Step 3: Keep top 75% most variance probes/genes for efficient downstream analysis.
+#### Step 3: Keep top 75% most variant probes/genes for efficient downstream analysis.
 
-Probes for male cohort: 19590 -> 14692
+Probes for male cohort reduces from 19590 to 14692.
 
-Probes for female cohort: 20751 -> 15563
+Probes for female cohort from 20751 to 15563.
 
 ```{r}
 rowData(SE_male_dupRM)$gene_variance <- rowVars(assays(SE_male_dupRM)$exprs)
@@ -256,7 +256,7 @@ SE_female_dupRM_25up
 
 ### GMM clustering to infer response to vaccination
 
-Data on antibody titer are deposited on dbGaP with restricted access. Thus, we use 11 differentially expressed genes with respect to response given by authors to differentiate high response and low response after vaccination. These 11 genes are found using male cohort.
+Data regarding informaiton on antibody titer are deposited in dbGaP with restricted access. Thus, we use 11 differentially expressed genes with respect to response given by authors to differentiate high response and low response after vaccination among participants. Please not that these 11 genes are found using male cohort.
 
 Gene PRDX2 are not present in both female and male cohort after data pre-processing.
 
@@ -267,7 +267,8 @@ DE11_response[!DE11_response %in% rownames(SE_male_dupRM_25up)]
 
 DE11_response[!DE11_response %in% rownames(SE_female_dupRM_25up)]
 ```
-We will cluster participants based on difference between day1 and day0 expression.
+
+We will cluster participants based on the difference between day 1 and day 0 expression of the available 10 genes.
 
 #### On male cohort
 
@@ -303,12 +304,23 @@ We assign group 2 as high responders based on boxplots on the difference of expr
 
 ```{r, fig.width= 8, fig.height=5}
 
-# Check GMM cluster result wrt 10 genes
+# Gene names in Table 1
+names_table1 <- c("STAT1", "IRF9", "SPI1", "CD74", "HLA-E", "TNFSF13B", "PRDX3", "E2F2", "PTEN", "ITGB1")
+
+# Create Table1
+table1 <- data.frame(Gene=names_table1, "Upregulated in"=c("High responders", "High responders","High responders","High responders","High responders","High responders","Low responders","Low responders","Low responders","Low responders"))
+
+## Subset of Transcripts Used for prediction of the TRI
+table1
+
+# Boxplot of diff(day1-day0) by clustered group across the genes in Table 1
 par(mfrow=c(2,5))
-for (i in 1:nrow(male_diff_day1_0)){
-  dff <- data.frame(expr = male_diff_day1_0[rownames(male_diff_day1_0)[i],], group=GMM_male$classification)
-  boxplot(expr ~ group,dff, main=rownames(male_diff_day1_0)[i], ylab="diff(day1- day0)")
+for (i in 1:length(names_table1)){
+  dff <- data.frame(expr = male_diff_day1_0[names_table1[i],], group=GMM_male$classification)
+  boxplot(expr ~group,dff, main=names_table1[i], ylab="diff(day1- day0)")
 }
+par(mfrow=c(1,1))
+
 
 ```
 
@@ -318,7 +330,7 @@ SE_male_dupRM_25up$response <- factor(GMM_male$classification[match(SE_male_dupR
 
 #### On female cohort
 
-Please refer to the Rmd file for code. 
+Code are not shown in html to reduce redundancy, please refer to Rmd file for code.
 
 ```{r, echo = FALSE, message = FALSE}
 female_exprs_day1_0 <- list( day1 = SE_female_dupRM_25up[which(rownames(SE_female_dupRM_25up) %in% DE11_response),which(SE_female_dupRM_25up$time == "Day1")],
@@ -344,21 +356,23 @@ GMM_female <-  Mclust(t(female_diff_day1_0),  G = 2)
 table(GMM_female$classification)
 ```
 
-The 10 genes used for clustering are found using male cohort, and analysis using GMM shows inconsistencies when applied on female cohort. Overall, we assign group 1 as high responders and group 2 as low responders for female cohort. 
+Overall, we assign group 2 as high responders and group 1 as low responders for female cohort based on boxplots. 
 
 ```{r, fig.width= 8, fig.height=5, echo = FALSE}
 
 # Check GMM cluster result wrt 10 genes
 par(mfrow=c(2,5))
-for (i in 1:nrow(female_diff_day1_0)){
-  dff <- data.frame(expr = female_diff_day1_0[rownames(female_diff_day1_0)[i],], group=GMM_female$classification)
-  boxplot(expr ~ group,dff, main=rownames(female_diff_day1_0)[i], ylab="diff(day1- day0)")
+for (i in 1:length(names_table1)){
+  dff <- data.frame(expr = female_diff_day1_0[names_table1[i],], group=GMM_female$classification)
+  boxplot(expr ~group,dff, main=names_table1[i], ylab="diff(day1- day0)")
 }
+par(mfrow=c(1,1))
+
 
 ```
 
 ```{r, echo = FALSE}
-SE_female_dupRM_25up$response <- factor(GMM_female$classification[match(SE_female_dupRM_25up$ID, names(GMM_female$classification))],  levels = c(2,1))
+SE_female_dupRM_25up$response <- factor(GMM_female$classification[match(SE_female_dupRM_25up$ID, names(GMM_female$classification))],  levels = c(1,2))
 ```
 
 # Results
@@ -380,7 +394,9 @@ mixed_test <- function(gene,gene_name, covariates, fml, var_rowname, j){
 
 GO_analysis <- function(genes){
   DE <- gost(query = genes, organism = "hsapiens", multi_query = FALSE,
-                     correction_method = "fdr", user_threshold = 0.01, source = "GO:BP")
+             correction_method = "fdr", user_threshold = 0.01,  
+             significant = TRUE,
+             source = "GO:BP")
 
   print(table(DE[["result"]][["source"]]))
 
@@ -405,7 +421,7 @@ GO_analysis <- function(genes){
 
 ### Analysis with respect to time
 
-We first fit mixed effect model, then extract p-value from testing the effect on time variable which is treated as categorical variable.
+We first fit mixed effect model, then extract p-value from testing the fix effect on time which is treated as categorical variable.
 
 ```{r}
 
@@ -428,7 +444,7 @@ hist(mix_test_time_male$pvalue, main ="P-value from fix effect of time", xlab="P
 
 ```
 
-P-values are adjusted using Benjamini-Hotchberg method.
+P-values are adjusted using Benjamini-Hotchberg (BH) method.
 
 ```{r}
 # BH adjusted p-value
@@ -532,7 +548,7 @@ pheatmap(cbind(DE_response1_mean_male,DE_response2_mean_male),
 
 ```
 
-There are 483 GO terms showed significant association with 573 DE genes found with respect to response over time. The top GO terms are mostly related to immune response.
+From GO enrichment analysis, there are 483 GO terms showed significant association with 573 DE genes found with respect to response over time. The top GO terms are mostly related to immune response.
 
 ```{r}
 GO_analysis(rownames(DEresponse_male))
@@ -541,7 +557,7 @@ GO_analysis(rownames(DEresponse_male))
 
 ## Female cohort
 
-Please refer to Rmd file for code.
+Code for analysis on female cohort are not shown in html, please refer to Rmd file for code.
 
 ### Analysis with respect to time
 
@@ -584,7 +600,7 @@ DEtime_female <- mix_test_time_female %>% as.data.frame() %>% filter(BH_pvalue <
 nrow(DEtime_female)
 ```
 
-We plot heatmap on top 50 DE genes by BH adjusted p-value. For female cohort, the top 50 DE genes are all up-regulated at day 1 after vaccination. 
+We plot heatmap on top 50 DE genes by BH adjusted p-value. For female cohort, the top 50 DE genes are all up-regulated at day 1 after vaccination in female cohort. 
 
 ```{r, fig.height=10, fig.width=8 , echo = FALSE}
 DE50_female <- SE_female_dupRM_25up[which(rownames(SE_female_dupRM_25up) %in% rownames(DEtime_female %>% arrange(BH_pvalue))[1:50]), ]
@@ -607,7 +623,7 @@ GO_analysis(rownames(DEtime_female))
 
 ### Analysis with respect to response across time
 
-Response variable is inferred using GMM in previous section. We fit a mixed effect model including interaction between response and time as fixed effect. Then p-values on testing the effect of the interaction is extracted, then adjusted using Benjamini-Hotchberg method.
+Response to vaccination is inferred using GMM in previous section. We fit a mixed effect model including interaction between response and time as fixed effect. Then p-values on testing the effect of the interaction are extracted, then adjusted using Benjamini-Hotchberg method.
 
 ```{r, echo = FALSE}
 
@@ -633,7 +649,7 @@ hist(mix_test_response_time_female$BH_pvalue, main ="BH adjusted p-value from fi
 ```
 
 
-Controlling for 5% of false discovery rate, there are 3217 differentially expressed (DE) genes across time in the male cohort.
+Controlling for 5% of false discovery rate, there are 3217 differentially expressed (DE) genes with respect to response across time in the female cohort.
 
 ```{r, echo = FALSE}
 DEresponse_female <- mix_test_response_time_female %>% as.data.frame() %>% filter(BH_pvalue < 0.05)
@@ -641,7 +657,7 @@ DEresponse_female <- mix_test_response_time_female %>% as.data.frame() %>% filte
 nrow(DEresponse_female)
 ```
 
-We plot heatmap on top 50 DE genes by BH adjusted p-value. Among the top 50 DE genes, majority are down-regulated at all time points among high responders after vaccination. This is different than the result shown for male analysis.
+From the heatmap on top 50 DE genes by BH adjusted p-value, majority of the DE genes are down-regulated at all time points among high responders after vaccination. This is different than the result shown for male analysis.
 
 ```{r, fig.height=10, fig.width=8, echo = FALSE}
 DE50response_female <- SE_female_dupRM_25up[which(rownames(SE_female_dupRM_25up) %in% rownames(DEresponse_female %>% arrange(BH_pvalue))[1:50]), ]
