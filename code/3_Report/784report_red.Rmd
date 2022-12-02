@@ -187,7 +187,7 @@ Probes for male cohort: 29228 -> 19590
 
 Probes for female cohort: 31243 -> 20751
 
-````{r}
+```{r}
 dupRM_male <-  avereps(assays(SE_male)$exprs, ID=rowData(SE_male)$"Gene symbol")
 nrow(dupRM_male)
 
